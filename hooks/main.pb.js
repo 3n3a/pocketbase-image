@@ -5,7 +5,7 @@
 // fires for every collection
 onRecordAfterCreateRequest((e) => {
     var collectionName = e.collection.name
-    var collectionTrigger = "CREATE"
+    var collectionTrigger = "create"
     if (collectionName != "webhook") {
         const result = arrayOf(new DynamicModel({
             "name": "",
@@ -43,7 +43,7 @@ onRecordAfterCreateRequest((e) => {
 // fires for every collection
 onRecordAfterUpdateRequest((e) => {
     var collectionName = e.collection.name
-    var collectionTrigger = "UPDATE"
+    var collectionTrigger = "update"
     if (collectionName != "webhook") {
         const result = arrayOf(new DynamicModel({
             "name": "",
@@ -81,7 +81,7 @@ onRecordAfterUpdateRequest((e) => {
 // fires for every collection
 onRecordAfterDeleteRequest((e) => {
     var collectionName = e.collection.name
-    var collectionTrigger = "DELETE"
+    var collectionTrigger = "delete"
     if (collectionName != "webhook") {
         const result = arrayOf(new DynamicModel({
             "name": "",

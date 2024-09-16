@@ -34,16 +34,36 @@ migrate((db) => {
                 name: "trigger",
                 type: "text",
                 required: true,
+                options: {
+                    maxSelect: 3,
+                    values: [
+                        "create",
+                        "update",
+                        "delete"
+                    ]
+                }
             },
             {
                 name: "request_method",
                 type: "text",
                 required: true,
+                options: {
+                    maxSelect: 1,
+                    values: [
+                        "get",
+                        "post",
+                        "put",
+                        "delete"
+                    ]
+                }
             },
             {
                 name: "request_body",
-                type: "text",
+                type: "json",
                 required: true,
+                options: {
+                    maxSize: 2000000
+                }
             },
         ],
         indexes: [

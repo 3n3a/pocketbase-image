@@ -3,7 +3,10 @@
 // only via modules, but i was tired.
 
 // fires for every collection
-onRecordAfterCreateRequest((e) => {
+onRecordCreateRequest((e) => {
+    // if at beginning => "after" the "action", if at end => "before" the "action" (next)
+    e.next()
+
     var collectionName = e.collection.name
     var collectionTrigger = "create"
     if (collectionName != "webhook") {
@@ -14,7 +17,7 @@ onRecordAfterCreateRequest((e) => {
             "request_method": "",
             "request_body": "",
         }))
-        $app.dao().db()
+        $app.db()
             .select("name", "url", "trigger", "request_method", "request_body")
             .from("webhook")
             .where($dbx.hashExp({
@@ -41,7 +44,9 @@ onRecordAfterCreateRequest((e) => {
 })
 
 // fires for every collection
-onRecordAfterUpdateRequest((e) => {
+onRecordUpdateRequest((e) => {
+    e.next()
+
     var collectionName = e.collection.name
     var collectionTrigger = "update"
     if (collectionName != "webhook") {
@@ -52,7 +57,7 @@ onRecordAfterUpdateRequest((e) => {
             "request_method": "",
             "request_body": "",
         }))
-        $app.dao().db()
+        $app.db()
             .select("name", "url", "trigger", "request_method", "request_body")
             .from("webhook")
             .where($dbx.hashExp({
@@ -79,7 +84,9 @@ onRecordAfterUpdateRequest((e) => {
 })
 
 // fires for every collection
-onRecordAfterDeleteRequest((e) => {
+onRecordDeleteRequest((e) => {
+    e.next()
+
     var collectionName = e.collection.name
     var collectionTrigger = "delete"
     if (collectionName != "webhook") {
@@ -90,7 +97,7 @@ onRecordAfterDeleteRequest((e) => {
             "request_method": "",
             "request_body": "",
         }))
-        $app.dao().db()
+        $app.db()
             .select("name", "url", "trigger", "request_method", "request_body")
             .from("webhook")
             .where($dbx.hashExp({

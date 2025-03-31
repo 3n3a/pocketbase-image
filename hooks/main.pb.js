@@ -67,7 +67,7 @@ onRecordUpdateRequest((e) => {
             .all(result)
 
         for (const webhook of result) {
-            console.log("[TRIGGER] Webhook '" + webhook.name + "', event: " + "CREATE")
+            console.log("[TRIGGER] Webhook '" + webhook.name + "', event: " + "UPDATE")
             try {
                 const res = $http.send({
                     url: webhook.url,
@@ -77,7 +77,7 @@ onRecordUpdateRequest((e) => {
                     timeout: 5, // in seconds
                 })
             } catch (err) {
-                console.log("[FAILED] Webhook '" + webhook.name + "', event: " + "CREATE", err)
+                console.log("[FAILED] Webhook '" + webhook.name + "', event: " + "UPDATE", err)
             }
         }
     }
@@ -107,7 +107,7 @@ onRecordDeleteRequest((e) => {
             .all(result)
 
         for (const webhook of result) {
-            console.log("[TRIGGER] Webhook '" + webhook.name + "', event: " + "CREATE")
+            console.log("[TRIGGER] Webhook '" + webhook.name + "', event: " + "DELETE")
             try {
                 const res = $http.send({
                     url: webhook.url,
@@ -117,7 +117,7 @@ onRecordDeleteRequest((e) => {
                     timeout: 5, // in seconds
                 })
             } catch (err) {
-                console.log("[FAILED] Webhook '" + webhook.name + "', event: " + "CREATE", err)
+                console.log("[FAILED] Webhook '" + webhook.name + "', event: " + "DELETE", err)
             }
         }
     }

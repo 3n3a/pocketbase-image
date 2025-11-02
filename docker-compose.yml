@@ -4,5 +4,3 @@ services:
   build:
     context: .
     dockerfile: Dockerfile
-  environment:
-    - PORT=5000

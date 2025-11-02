@@ -1,0 +1,9 @@
+services:
+  pocketbase:
+    image: pocketbase/pocketbase
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      # Required with sensible defaults
+      - PORT=${PORT:?5000}
+

@@ -47,6 +47,9 @@ jobs:
             echo "Latest PocketBase release: $VERSION"
           fi
 
+          # write to local file for outputting in log
+          echo "$VERSION" > CURRENT_VERSION
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if image already exists

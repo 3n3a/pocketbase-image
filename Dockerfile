@@ -28,5 +28,10 @@ COPY ./migrations /pb_migrations
 ## ATTENTION: Volume for PB_DATA will be mounted under ROOT!!!!!!!!!!!!
 ##
 
-# start PocketBase
-ENTRYPOINT ["/entrypoint.sh"]
+EXPOSE 8080
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl --fail http://localhost:8080/api/health || exit 1
+
+ENTRYPOINT ["/entrypoint.sh]

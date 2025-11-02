@@ -6,7 +6,7 @@
 
 PB_VERSION=$(cat /PB_VERSION)
 
-PB_PORT=${PORT:=5000}
+PB_PORT=${PORT:=8080}
 PB_HOST=${HOST:=0.0.0.0}
 
 echo "=== Starting Pocketbase Version $PB_VERSION ==="

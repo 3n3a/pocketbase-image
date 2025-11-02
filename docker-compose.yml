@@ -1,6 +1,6 @@
 services:
   pocketbase:
-    image: pocketbase/pocketbase
+    image: local/pocketbase
       context: .
       dockerfile: ./Dockerfile
     environment:

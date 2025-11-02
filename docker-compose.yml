@@ -1,8 +1,8 @@
 services:
   pocketbase:
     image: local/pocketbase
+	build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: Dockerfile
     environment:
       - PORT=5000
-

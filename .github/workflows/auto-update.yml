@@ -1,0 +1,184 @@
+name: Build PocketBase Docker Images
+
+on:
+  schedule:
+    # Run daily at 00:00 UTC to check for new releases
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'PocketBase version to build (e.g., 0.31.0). Leave empty to build latest.'
+        required: false
+        type: string
+      force_rebuild:
+        description: 'Force rebuild even if image already exists'
+        required: false
+        type: boolean
+        default: false
+      skip_latest_tag:
+        description: 'Skip tagging as latest (useful for building older versions)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  GITHUB_REGISTRY: ghcr.io
+  DOCKER_REGISTRY: docker.io
+  IMAGE_NAME: coollabsio/pocketbase
+
+jobs:
+  check-release:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.pocketbase-release.outputs.version }}
+      should_build: ${{ steps.check-image.outputs.exists == 'false' }}
+    steps:
+      - name: Get latest PocketBase release
+        id: pocketbase-release
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            echo "Using manually specified version: $VERSION"
+          else
+            # Fetch the latest release from PocketBase GitHub
+            LATEST_RELEASE=$(curl -s https://api.github.com/repos/pocketbase/pocketbase/releases/latest | jq -r '.tag_name')
+            # Remove 'v' prefix if present
+            VERSION=$(echo "$LATEST_RELEASE" | sed 's/^v//')
+            echo "Latest PocketBase release: $VERSION"
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if image already exists
+        id: check-image
+        run: |
+          VERSION="${{ steps.pocketbase-release.outputs.version }}"
+          GHCR_IMAGE="${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_NAME }}"
+          FORCE_REBUILD="${{ github.event.inputs.force_rebuild }}"
+
+          # If force_rebuild is true, always rebuild
+          if [ "$FORCE_REBUILD" = "true" ]; then
+            echo "Force rebuild enabled, skipping existence check"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          # Try to pull the image to see if it exists
+          elif docker manifest inspect "${GHCR_IMAGE}:${VERSION}" > /dev/null 2>&1; then
+            echo "Image ${GHCR_IMAGE}:${VERSION} already exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Image ${GHCR_IMAGE}:${VERSION} does not exist, will build"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-push:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    needs: check-release
+    if: needs.check-release.outputs.should_build == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to ${{ env.GITHUB_REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GITHUB_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to ${{ env.DOCKER_REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Image (${{ matrix.arch }})
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          build-args: |
+            BUILDARCH=${{ matrix.arch }}
+            PB_VERSION=${{ needs.check-release.outputs.version }}
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}-${{ matrix.arch }}
+            ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}-${{ matrix.arch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  merge-manifest:
+    runs-on: ubuntu-latest
+    needs: [check-release, build-push]
+    if: needs.check-release.outputs.should_build == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to ${{ env.GITHUB_REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GITHUB_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to ${{ env.DOCKER_REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create & publish manifest on ${{ env.GITHUB_REGISTRY }}
+        run: |
+          TAGS="-t ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}"
+
+          # Only add latest tag if skip_latest_tag is false
+          if [ "${{ github.event.inputs.skip_latest_tag }}" != "true" ]; then
+            TAGS="$TAGS -t ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          fi
+
+          docker buildx imagetools create \
+          $TAGS \
+          ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}-amd64 \
+          ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}-arm64
+
+      - name: Create & publish manifest on ${{ env.DOCKER_REGISTRY }}
+        run: |
+          TAGS="-t ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}"
+
+          # Only add latest tag if skip_latest_tag is false
+          if [ "${{ github.event.inputs.skip_latest_tag }}" != "true" ]; then
+            TAGS="$TAGS -t ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          fi
+
+          docker buildx imagetools create \
+          $TAGS \
+          ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}-amd64 \
+          ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}-arm64
+
+      - name: Summary
+        run: |
+          echo "✅ Successfully built and published PocketBase ${{ needs.check-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Images published:" >> $GITHUB_STEP_SUMMARY
+          echo "- GHCR: ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker Hub: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.skip_latest_tag }}" != "true" ]; then
+            echo "- Latest: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          fi

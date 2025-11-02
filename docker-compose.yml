@@ -4,6 +4,5 @@ services:
       context: .
       dockerfile: ./Dockerfile
     environment:
-      # Required with sensible defaults
-      - PORT=${PORT:?5000}
+      - PORT=5000
 

@@ -1,32 +1,21 @@
-##################### BUILD ######################
-FROM alpine:latest AS installer
-
-RUN apk add --no-cache \
-    curl jq unzip
-
-COPY ./scripts/download-pocketbase.sh /tmp/download-pocketbase.sh
-RUN sh /tmp/download-pocketbase.sh
-
-COPY ./scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-#####################  RUN  ######################
 FROM alpine:latest
 
-# pocketbase
-COPY --from=installer /pb/pocketbase /
-COPY --from=installer /PB_VERSION /PB_VERSION
-COPY --from=installer /entrypoint.sh /entrypoint.sh
+ARG BUILDARCH
+ARG PB_VERSION=0.31.0
 
-# pb_hooks
-COPY ./hooks /pb_hooks
+RUN apk add --no-cache \
+  unzip \
+  ca-certificates \
+  curl \
+  wget
 
-# pb_migrations
-COPY ./migrations /pb_migrations
+ADD https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${BUILDARCH}.zip /tmp/pb.zip
 
-##
-## ATTENTION: Volume for PB_DATA will be mounted under ROOT!!!!!!!!!!!!
-##
+RUN unzip /tmp/pb.zip -d /app/
+RUN rm /tmp/pb.zip
+
+COPY ./hooks /app/pb_hooks
+COPY ./migrations /app/pb_migrations
 
 EXPOSE 8080
 
@@ -34,4 +23,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl --fail http://localhost:8080/api/health || exit 1
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/pocketbase", "serve", "--http=0.0.0.0:8080"]

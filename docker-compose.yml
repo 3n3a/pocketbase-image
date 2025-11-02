@@ -1,6 +1,0 @@
-services:
-  pocketbase:
-    image: local/pocketbase
-  build:
-    context: .
-    dockerfile: Dockerfile
